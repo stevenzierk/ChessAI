@@ -297,7 +297,7 @@ class ChessCNN(nn.Module):
         # Convolutional layers
         self.conv1 = nn.Conv2d(17, 64, kernel_size=3, padding=1)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
-        
+
         # Fully connected layers
         self.fc1 = nn.Linear(128 * 2 * 2, 64)
         self.fc2 = nn.Linear(64, 1)
@@ -354,4 +354,3 @@ game.headers["Result"] = board.result()
 print (str(game))
 
 torch.save(conv_chess_net.state_dict(), 'chessCNNNew.pth')
-
