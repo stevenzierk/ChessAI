@@ -198,6 +198,61 @@ class ChessEvaulationNet1(nn.Module):
         x = torch.tanh(self.fc3(x))
         return x
 
+def play_game(nn1, nn2):
+    board = chess.Board()
+    positions = []
+    net = nn1
+
+    while not board.is_game_over():
+        positions.append(board)
+        move, score = select_best_move2(board, net)
+        board.push(move)
+        if net == nn1:
+            net = nn2
+        else:
+            net = nn1
+    return positions, board.result()
+
+def play_match(nn1, nn2, games):
+    points_1 = 0
+    for i in range(games):
+        if i % 2 == 0:
+            pos, result = play_game(nn1, nn2)
+            if result == "1-0":
+                points_1 += 1
+        else:
+            pos, result = play_game(nn2, nn1)
+            if result == "0-1":
+                points_1 += 1
+        if result == "1/2-1/2":
+            points_1 += .5
+
+    return points_1
+
+def train_nn(nn, games, epochs):
+    loss_function = torch.nn.MSELoss()
+    optimizer = torch.optim.Adam(conv_chess_net.parameters(), lr=0.001)
+    for i in range(1, games + 1):
+        print (f"Game {i}")
+
+        conv_chess_net.eval()
+        positions, result = self_play2(conv_chess_net)
+
+        outcome = 1 if result == "1-0" else -1 if result == "0-1" else 0
+        outcome = torch.tensor([[outcome]], dtype=torch.float32)
+
+        conv_chess_net.train()
+        for epoch in range(epochs):
+            for position in positions:
+                optimizer.zero_grad()
+                prediction = nn_eval2(position, conv_chess_net)
+
+                loss = loss_function(prediction, outcome)
+                loss.backward()
+                optimizer.step()
+
+    return nn
+
 def nn_eval2(board, nn):
     data = fen_to_nninput2(board.fen())
     data = torch.tensor(data, dtype=torch.float32)
@@ -265,30 +320,18 @@ class ChessCNN(nn.Module):
         x = torch.tanh(x)
         return x
 
+TRAINING_GAMES = 10000
+EPOCHS = 10
+model_file = 'chessCNN2010.pth'
 conv_chess_net = ChessCNN()
+#conv_chess_net.load_state_dict(torch.load(model_file))
 loss_function = torch.nn.MSELoss()
 optimizer = torch.optim.Adam(conv_chess_net.parameters(), lr=0.001)
 
-for i in range(1, 100 + 1):
-    print (f"Game {i}")
-
-    positions, result = self_play2(conv_chess_net)
-
-    outcome = 1 if result == "1-0" else -1 if result == "0-1" else 0
-    outcome = torch.tensor([[outcome]], dtype=torch.float32)
-
-    for epoch in range(10):
-        for position in positions:
-            conv_chess_net.train()
-            optimizer.zero_grad()
-            prediction = nn_eval2(position, conv_chess_net)
-
-            loss = loss_function(prediction, outcome)
-            loss.backward()
-            optimizer.step()
-
 conv_chess_net.eval()
 self_play2(conv_chess_net)
+
+train_nn(nn, TRAINING_GAMES, EPOCHS)
 
 board = chess.Board()
 game = chess.pgn.Game()
@@ -310,75 +353,5 @@ print (board)
 game.headers["Result"] = board.result()
 print (str(game))
 
-'''
-net1 = ChessEvaulationNet1
-loss_function = torch.nn.MSELoss()
-optimizer = torch.optim.Adam(net1.parameters(), lr=0.001)
-
-for i in range(1, 10 + 1):
-    net1.eval()
-    #if i & (i - 1) == 0:
-    #    print (i)
-    print (i)
-
-    positions, result = self_play(net1, 3)
-
-    outcome = 0
-    if result == "1-0":
-        outcome = 1
-    elif result == "0-1":
-        outcome = -1
-    outcome = torch.tensor([outcome], dtype=torch.float32)
-
-    for epoch in range(1):
-        for position in positions:
-            net1.train()
-            optimizer.zero_grad()
-            prediction = nn_eval(position, net1)
-
-            loss = loss_function(prediction, outcome)
-            loss.backward()
-            optimizer.step()
-
-net1.eval()
-net2 = ChessEvaulationNet1()
-net2.eval()
-
-play_game(net1, net2, 3)
-input_start_pos = fen_to_nninput(chess.STARTING_FEN)
-input_start_pos = torch.tensor(input_start_pos, dtype=torch.float32)
-net1 = ChessEvaulationNet1()
-net1.eval()
-with torch.no_grad():
-    output = net1(input_start_pos)
-
-print(output)'''
-
-'''board = chess.Board()
-game = chess.pgn.Game()
-node = game
-game.headers["Event"] = "NN eval depth 1 game"
-white = ChessEvaulationNet1()
-black = ChessEvaulationNet1()
-white.eval()
-black.eval()
-
-while not board.is_game_over():
-    with torch.no_grad():
-        mover = white if board.turn == chess.WHITE else black
-        move, score = pick_move_depth_1(mover, board)
-        board.push(move)
-        node = node.add_variation(move)
-
-print (board)
-game.headers["Result"] = board.result()
-print (str(game))'''
-
-
-
-
-
-
-
-
+torch.save(conv_chess_net.state_dict(), 'chessCNNNew.pth')
 
