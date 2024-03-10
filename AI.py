@@ -129,7 +129,7 @@ def minimax(board, depth, is_maximizer, nn, alpha=-1, beta=1):
             move_eval = minimax(board, depth-1, False, nn, alpha, beta)
             board.pop()
             max_eval = max(max_eval, move_eval)
-            alpha = max(max_eval, move_eval)
+            alpha = max(alpha, move_eval)
             if alpha >= beta:
                 break
         return max_eval
